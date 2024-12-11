@@ -3,48 +3,54 @@ from PIL import Image
 import os
 from langchain.embeddings.openai import OpenAIEmbeddings
 st.set_page_config(layout="wide")
-
+import socket
+import requests
+from urllib.parse import urlparse
 import phoenix as px
 from phoenix.otel import register
-from urllib.parse import urlparse
 
-def configure_phoenix_tracing(fallback_to_local=True):
-    """
-    Configure Phoenix tracing with proper host detection and fallback
-    
-    Args:
-        fallback_to_local (bool): Whether to fallback to localhost if main config fails
-    """
-    # Start Phoenix first to get the URL
+def check_network_policies():
+    # 1. Get Databricks host from current session
     session = px.launch_app()
     databricks_url = session.url
-    
-    # Extract host from URL
     parsed_url = urlparse(databricks_url)
     databricks_host = parsed_url.hostname
     
-    try:
-        # Try organization's Databricks host first
-        tracer_provider = register(
-            project_name="test_traces",
-            endpoint=f"http://{databricks_host}:4317"
-        )
-        print(f"Successfully configured tracing with host: {databricks_host}")
-    except Exception as e:
-        if fallback_to_local:
-            print(f"Failed to use Databricks host ({str(e)}), falling back to localhost")
-            tracer_provider = register(
-                project_name="test_traces",
-                endpoint="http://localhost:4317"
-            )
-        else:
-            raise e
+    print(f"\n1. Databricks Environment:")
+    print(f"Host: {databricks_host}")
     
-    return session, tracer_provider
+    # 2. Check common ports
+    ports_to_check = [4317, 4318, 6006, 8080]
+    print("\n2. Port Status:")
+    for port in ports_to_check:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('localhost', port))
+        print(f"Port {port}: {'Open' if result == 0 else 'Closed'}")
+        sock.close()
+    
+    # 3. Try connecting to Databricks host
+    print("\n3. Trying to connect to Databricks host:")
+    try:
+        response = requests.get(databricks_url, timeout=5)
+        print(f"Connection successful: {response.status_code}")
+    except Exception as e:
+        print(f"Connection failed: {str(e)}")
+    
+    return databricks_host
 
-# Use the configuration
-session, tracer_provider = configure_phoenix_tracing()
-print(f"\nPhoenix UI available at: {session.url}")
+# Run diagnostics
+databricks_host = check_network_policies()
+
+# Try setting up Phoenix with the actual host
+print("\n4. Attempting to setup Phoenix with Databricks host:")
+try:
+    tracer_provider = register(
+        project_name="test_traces",
+        endpoint=f"http://{databricks_host}:4317"
+    )
+    print("Setup successful!")
+except Exception as e:
+    print(f"Setup failed: {str(e)}")
 
 st.markdown("""
 <style>
