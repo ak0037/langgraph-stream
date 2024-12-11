@@ -4,55 +4,47 @@ import os
 from langchain.embeddings.openai import OpenAIEmbeddings
 st.set_page_config(layout="wide")
 
-from langchain_openai import AzureOpenAIEmbeddings
-import os
-https://adb-dp-182495964472138.18.azuredatabricks.net/driver-proxy/o/182495964472138/1205-082119-n66oclg8/6006/projects/UHJvamVjdDoy
-# Configure Azure OpenAI embeddings
-embeddings = AzureOpenAIEmbeddings(
-    azure_endpoint="https://abhin-m2ifqtz5-eastus2.openai.azure.com",
-    deployment="text-embedding-ada-002",  # Changed from azure_deployment to deployment
-    api_key="4f46e8f30eac4a3abedeb41c04b7ab52",
-    api_version="2023-05-15"
-)
+import phoenix as px
+from phoenix.otel import register
+from urllib.parse import urlparse
 
-def load_documents(directory_path):
-    documents = []
-    for filename in os.listdir(directory_path):
-        if filename.endswith('.txt'):  
-            file_path = os.path.join(directory_path, filename)
-            loader = TextLoader(file_path)
-            documents.extend(loader.load())
-    return documents
+def configure_phoenix_tracing(fallback_to_local=True):
+    """
+    Configure Phoenix tracing with proper host detection and fallback
+    
+    Args:
+        fallback_to_local (bool): Whether to fallback to localhost if main config fails
+    """
+    # Start Phoenix first to get the URL
+    session = px.launch_app()
+    databricks_url = session.url
+    
+    # Extract host from URL
+    parsed_url = urlparse(databricks_url)
+    databricks_host = parsed_url.hostname
+    
+    try:
+        # Try organization's Databricks host first
+        tracer_provider = register(
+            project_name="test_traces",
+            endpoint=f"http://{databricks_host}:4317"
+        )
+        print(f"Successfully configured tracing with host: {databricks_host}")
+    except Exception as e:
+        if fallback_to_local:
+            print(f"Failed to use Databricks host ({str(e)}), falling back to localhost")
+            tracer_provider = register(
+                project_name="test_traces",
+                endpoint="http://localhost:4317"
+            )
+        else:
+            raise e
+    
+    return session, tracer_provider
 
-documents = load_documents('/Workspace/Users/abhinav.katiyar@spaceinventive.com/data/')
-
-# Create text splitter for smaller chunks
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=300,
-    chunk_overlap=30,
-    length_function=len,
-    separators=["\n\n", "\n", ".", "!", "?", " ", ""]
-)
-
-# Process documents into chunks
-texts = text_splitter.split_documents(documents)  # Changed to split_documents instead of manual splitting
-
-# Build vector store
-qdrant = Qdrant.from_documents(
-    texts,
-    embeddings,
-    location=":memory:",
-    collection_name="my_documents",
-)
-
-# Configure retriever
-retriever = qdrant.as_retriever(
-    search_type="mmr",
-    search_kwargs={
-        "k": 2,
-        "fetch_k": 3
-    }
-)
+# Use the configuration
+session, tracer_provider = configure_phoenix_tracing()
+print(f"\nPhoenix UI available at: {session.url}")
 
 st.markdown("""
 <style>
