@@ -1,8 +1,17 @@
 import streamlit as st
 from PIL import Image
 import os
-
+from langchain.embeddings.openai import OpenAIEmbeddings
 st.set_page_config(layout="wide")
+# Configure Azure OpenAI Embeddings
+embeddings = OpenAIEmbeddings(
+    deployment="text-embedding-ada-002",  # Your Azure OpenAI deployment name
+    model="text-embedding-ada-002",      # OpenAI model name
+    api_type="azure",
+    api_base="https://abhin-m2ifqtz5-eastus2.openai.azure.com",  # Azure OpenAI endpoint
+    api_version="2023-05-15",    # Azure API version for embeddings
+    api_key="4f46e8f30eac4a3abedeb41c04b7ab52"  # Azure OpenAI API key
+)
 
 
 st.markdown("""
