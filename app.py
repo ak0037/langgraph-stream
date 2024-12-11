@@ -6,7 +6,7 @@ st.set_page_config(layout="wide")
 
 from langchain_openai import AzureOpenAIEmbeddings
 import os
-
+https://adb-dp-182495964472138.18.azuredatabricks.net/driver-proxy/o/182495964472138/1205-082119-n66oclg8/6006/projects/UHJvamVjdDoy
 # Configure Azure OpenAI embeddings
 embeddings = AzureOpenAIEmbeddings(
     azure_endpoint="https://abhin-m2ifqtz5-eastus2.openai.azure.com",
