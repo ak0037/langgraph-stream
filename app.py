@@ -247,3 +247,39 @@ with st.expander("Advanced Options"):
         st.info("Source information will be available with RAG implementation")
       
         st.markdown("```\nSource information will appear here\n```")
+
+
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import mlflow
+import torch
+
+# Start MLflow run
+with mlflow.start_run(run_name="llama2_registration"):
+    
+    # Choose model version
+    model_id = "meta-llama/Llama-2-7b-chat-hf"  # or other Llama variants
+    
+    # Log model details as params
+    mlflow.log_params({
+        "model_id": model_id,
+        "model_type": "chat"
+    })
+    
+    # Download model and tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16)
+    
+    # Save to Model Registry
+    mlflow.transformers.log_model(
+        transformers_model={
+            "model": model,
+            "tokenizer": tokenizer
+        },
+        artifact_path="llama2-chat",
+        registered_model_name="llama2-chat-model",  # This registers it in Model Registry
+        pip_requirements=["torch", "transformers", "accelerate"]
+    )
+
+# Get the latest version
+model_path = "models:/llama2-chat-model/latest"
