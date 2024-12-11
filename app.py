@@ -3,16 +3,56 @@ from PIL import Image
 import os
 from langchain.embeddings.openai import OpenAIEmbeddings
 st.set_page_config(layout="wide")
-# Configure Azure OpenAI Embeddings
-embeddings = OpenAIEmbeddings(
-    deployment="text-embedding-ada-002",  # Your Azure OpenAI deployment name
-    model="text-embedding-ada-002",      # OpenAI model name
-    api_type="azure",
-    api_base="https://abhin-m2ifqtz5-eastus2.openai.azure.com",  # Azure OpenAI endpoint
-    api_version="2023-05-15",    # Azure API version for embeddings
-    api_key="4f46e8f30eac4a3abedeb41c04b7ab52"  # Azure OpenAI API key
+
+from langchain_openai import AzureOpenAIEmbeddings
+import os
+
+# Configure Azure OpenAI embeddings
+embeddings = AzureOpenAIEmbeddings(
+    azure_endpoint="https://abhin-m2ifqtz5-eastus2.openai.azure.com",
+    deployment="text-embedding-ada-002",  # Changed from azure_deployment to deployment
+    api_key="4f46e8f30eac4a3abedeb41c04b7ab52",
+    api_version="2023-05-15"
 )
 
+def load_documents(directory_path):
+    documents = []
+    for filename in os.listdir(directory_path):
+        if filename.endswith('.txt'):  
+            file_path = os.path.join(directory_path, filename)
+            loader = TextLoader(file_path)
+            documents.extend(loader.load())
+    return documents
+
+documents = load_documents('/Workspace/Users/abhinav.katiyar@spaceinventive.com/data/')
+
+# Create text splitter for smaller chunks
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=300,
+    chunk_overlap=30,
+    length_function=len,
+    separators=["\n\n", "\n", ".", "!", "?", " ", ""]
+)
+
+# Process documents into chunks
+texts = text_splitter.split_documents(documents)  # Changed to split_documents instead of manual splitting
+
+# Build vector store
+qdrant = Qdrant.from_documents(
+    texts,
+    embeddings,
+    location=":memory:",
+    collection_name="my_documents",
+)
+
+# Configure retriever
+retriever = qdrant.as_retriever(
+    search_type="mmr",
+    search_kwargs={
+        "k": 2,
+        "fetch_k": 3
+    }
+)
 
 st.markdown("""
 <style>
