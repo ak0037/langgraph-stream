@@ -1,332 +1,464 @@
-import streamlit as st
-from PIL import Image
-import os
-from langchain.embeddings.openai import OpenAIEmbeddings
-st.set_page_config(layout="wide")
-import socket
-import requests
-from urllib.parse import urlparse
-import phoenix as px
-from phoenix.otel import register
+# from typing import List
+# from langchain_core.prompts import MessagesPlaceholder
+# from langchain_groq import ChatGroq
+# from langchain_core.messages import HumanMessage, AIMessage
+# from langchain.agents import AgentExecutor
+# from langchain.agents import initialize_agent, AgentType
+# from langchain_core.tools import Tool, tool
+# from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+# from opentelemetry.sdk import trace as trace_sdk
+# from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+# from opentelemetry.sdk.resources import Resource
+# from opentelemetry import trace as trace_api
+# from openinference.instrumentation.langchain import LangChainInstrumentor
+# from openinference.semconv.resource import ResourceAttributes
+# import os
 
-def check_network_policies():
-    # 1. Get Databricks host from current session
-    session = px.launch_app()
-    databricks_url = session.url
-    parsed_url = urlparse(databricks_url)
-    databricks_host = parsed_url.hostname
+# # Configure OpenTelemetry with project name
+# project_name = "lanningdd_loe"  # You can change this to your project name
+# resource = Resource.create({ResourceAttributes.PROJECT_NAME: project_name})
+# tracer_provider = trace_sdk.TracerProvider(resource=resource)
+
+# # Configure OTLP exporter
+
+# # Replace the OTLP exporter configuration with:
+# endpoint = "http://localhost:6006/v1/traces"
+# PHOENIX_API_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJBcGlLZXk6MSJ9.ZDiiPZcNka_bxPxfxPeY5SQ0rf5gOCZLOAM7hG-ypjU'
+# headers = {"authorization": f"Bearer {PHOENIX_API_KEY}"} if PHOENIX_API_KEY else {}
+
+# span_exporter = OTLPSpanExporter(
+#     endpoint=endpoint,
+#     headers=headers  # Add this line to pass the authentication headers
+# )
+# span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+# tracer_provider.add_span_processor(span_processor)
+
+# # Add console exporter for debugging (optional)
+# tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+
+# # Set the tracer provider
+# trace_api.set_tracer_provider(tracer_provider)
+
+# # Initialize LangChain instrumentation
+# LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+
+# # Set environment variable for Groq API key
+# os.environ["GROQ_API_KEY"] = "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"
+
+# # Define tools
+# @tool
+# def search_recipes(query: str) -> str:
+#     """Search for recipes based on ingredients or cuisine type."""
+#     # Clean up the query by removing quotes and extra whitespace
+#     query = query.strip().strip("'\"").lower()
     
-    print(f"\n1. Databricks Environment:")
-    print(f"Host: {databricks_host}")
+#     # Expanded recipe database with more options and variations
+#     recipes = {
+#         "pasta": "Classic Spaghetti: pasta, tomato sauce, garlic, basil",
+#         "vegetarian": "Vegetable Stir Fry: tofu, broccoli, carrots, soy sauce, ginger, garlic",
+#         "vegetarian dinner": "Vegetable Stir Fry: tofu, broccoli, carrots, soy sauce, ginger, garlic",
+#         "quick": "15-minute Quesadillas: tortillas, cheese, beans, salsa",
+#         "spicy": "Spicy Thai Curry: coconut milk, curry paste, tofu, vegetables, rice",
+#         "healthy": "Quinoa Bowl: quinoa, chickpeas, sweet potato, kale, tahini dressing",
+#         "dinner": "Grilled Chicken: chicken breast, herbs, lemon, olive oil, vegetables",
+#         "breakfast": "Breakfast Bowl: oatmeal, banana, honey, nuts, berries"
+#     }
     
-    # 2. Check common ports
-    ports_to_check = [4317, 4318, 6006, 8080]
-    print("\n2. Port Status:")
-    for port in ports_to_check:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('localhost', port))
-        print(f"Port {port}: {'Open' if result == 0 else 'Closed'}")
-        sock.close()
+#     # Search for exact matches first
+#     if query in recipes:
+#         return recipes[query]
     
-    # 3. Try connecting to Databricks host
-    print("\n3. Trying to connect to Databricks host:")
-    try:
-        response = requests.get(databricks_url, timeout=5)
-        print(f"Connection successful: {response.status_code}")
-    except Exception as e:
-        print(f"Connection failed: {str(e)}")
+#     # If no exact match, search for partial matches
+#     for key, value in recipes.items():
+#         if query in key or any(term in value.lower() for term in query.split()):
+#             return value
+            
+#     return f"No recipes found for '{query}'. Available categories: vegetarian, quick, spicy, healthy, breakfast, dinner, pasta"
+
+# @tool
+# def analyze_nutrition(recipe: str) -> str:
+#     """Analyze the nutritional content of a recipe."""
+#     # Extract recipe name and create more specific nutritional information
+#     recipe_name = recipe.split(":")[0].strip().lower()
     
-    return databricks_host
-
-# Run diagnostics
-databricks_host = check_network_policies()
-
-# Try setting up Phoenix with the actual host
-print("\n4. Attempting to setup Phoenix with Databricks host:")
-try:
-    tracer_provider = register(
-        project_name="test_traces",
-        endpoint=f"http://{databricks_host}:4317"
-    )
-    print("Setup successful!")
-except Exception as e:
-    print(f"Setup failed: {str(e)}")
-
-st.markdown("""
-<style>
-    /* Fixed size button container */
-    .stButton {
-        margin-bottom: 1rem;
-    }
+#     nutrition_database = {
+#         "vegetable stir fry": "Nutritional analysis: 300 calories per serving, 15g protein, 35g carbs, 12g fat, high in vitamins A and C",
+#         "classic spaghetti": "Nutritional analysis: 450 calories per serving, 12g protein, 65g carbs, 15g fat, good source of lycopene",
+#         "15-minute quesadillas": "Nutritional analysis: 400 calories per serving, 18g protein, 45g carbs, 20g fat, good source of calcium",
+#         "spicy thai curry": "Nutritional analysis: 380 calories per serving, 14g protein, 40g carbs, 18g fat, high in vitamin C",
+#         "quinoa bowl": "Nutritional analysis: 350 calories per serving, 13g protein, 50g carbs, 10g fat, high in fiber",
+#         "grilled chicken": "Nutritional analysis: 320 calories per serving, 35g protein, 10g carbs, 15g fat, high in protein",
+#         "breakfast bowl": "Nutritional analysis: 280 calories per serving, 8g protein, 45g carbs, 8g fat, high in fiber"
+#     }
     
-    /* Button styling */
-    .stButton > button {
-        height: 100px !important;
-        width: 100% !important;
-        white-space: normal !important;
-        text-align: center !important;
-        padding: 10px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        word-wrap: break-word !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+#     return nutrition_database.get(
+#         recipe_name,
+#         f"Generic nutritional analysis for {recipe_name}: Approximately 400 calories per serving, 15g protein, 45g carbs, 20g fat"
+#     )
 
-
-
-# def resize_image(image_path, max_width):
-#     image = Image.open(image_path)
-#     width_percent = (max_width / float(image.size[0]))
-#     new_height = int((float(image.size[1]) * float(width_percent)))
-#     resized_image = image.resize((max_width, new_height), Image.LANCZOS)
-#     return resized_image
-
-# # Add logo
-# logo_path = "images.jpg"
-# max_logo_width = 200
-
-# if os.path.exists(logo_path):
+# @tool
+# def generate_shopping_list(recipe: str) -> List[str]:
+#     """Generate a shopping list from a recipe."""
 #     try:
-#         logo = resize_image(logo_path, max_logo_width)
-#         st.sidebar.image(logo, use_column_width=True)
+#         # Extract ingredients from the recipe string
+#         ingredients = recipe.split(": ")[1].split(", ")
+        
+#         # Add quantities (this would come from a real database in a production system)
+#         quantities = {
+#             "pasta": "1 pound",
+#             "tomato sauce": "24 oz",
+#             "garlic": "3 cloves",
+#             "basil": "1 bunch",
+#             "tofu": "14 oz block",
+#             "broccoli": "2 cups",
+#             "carrots": "2 medium",
+#             "soy sauce": "1/4 cup",
+#             "ginger": "1 inch piece",
+#             "tortillas": "8 count",
+#             "cheese": "2 cups shredded",
+#             "beans": "15 oz can",
+#             "salsa": "16 oz jar"
+#         }
+        
+#         # Create formatted shopping list with quantities
+#         shopping_list = []
+#         for ingredient in ingredients:
+#             quantity = quantities.get(ingredient, "as needed")
+#             shopping_list.append(f"{ingredient} ({quantity})")
+            
+#         return shopping_list
+        
 #     except Exception as e:
-#         st.sidebar.warning(f"Error loading logo: {str(e)}")
-# else:
-#     st.sidebar.warning("Logo file not found. Please add 'images.jpg' to the same directory as this script.")
+#         return [f"Could not parse recipe format. Please provide recipe in format 'Recipe Name: ingredient1, ingredient2, ...'"]
 
-# Initialize session state
-if 'current_answer' not in st.session_state:
-    st.session_state.current_answer = ""
-if 'current_question' not in st.session_state:
-    st.session_state.current_question = ""
+# # Create the Groq LLM
+# llm = ChatGroq(
+#     model_name="mixtral-8x7b-32768",
+#     temperature=0.7
+# )
 
+# # Create tools list
+# tools = [
+#     search_recipes,
+#     analyze_nutrition,
+#     generate_shopping_list
+# ]
 
-st.sidebar.title("Filters")
-st.sidebar.write("")
+# # Initialize the agent with ZERO_SHOT_REACT_DESCRIPTION type
+# agent_executor = initialize_agent(
+#     tools,
+#     llm,
+#     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+#     verbose=True,
+#     handle_parsing_errors=True,
+#     max_iterations=5  # Increased from 3 to 5 to allow for more complex reasoning
+# )
 
-# Brand selection
-brand = st.sidebar.radio("Select a brand:", ["Cosentyx CEP studies", "Kisqali ATU Studies"])
-st.sidebar.write("")
-
-# Country selection based on brand
-country_options = {
-    "Cosentyx CEP studies": ["Germany", "Japan"],
-    "Kisqali ATU Studies": ["Germany", "UK"]
-}
-st.sidebar.write("")
-selected_country = st.sidebar.selectbox("Select Country:", country_options[brand])
-
-# Time period selection based on brand
-time_options = {
-    "Cosentyx CEP studies": ["Q1 24", "Q2 24"],
-    "Kisqali ATU Studies": ["Q3 24", "Q4 24"]
-}
-st.sidebar.write("")
-selected_time = st.sidebar.selectbox("Select Time Period:", time_options[brand])
-
-
-st.sidebar.write("")
-st.sidebar.write("")
-st.sidebar.write("")
-
-
-# About and Help sections with hover tooltips
-st.sidebar.markdown("---")
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    st.markdown("**About** ℹ️", help=f"This is a Q&A system that answers questions about {brand}.")
-with col2:
-    st.markdown("**Help** 💡", help="Click on predefined questions or type your own question to get answers. Select filters from sidebar to narrow down results.")
-
-
-st.title(f"{brand} Q&A System")
-st.markdown(f"Selected Country: **{selected_country}** | Time Period: **{selected_time}**")
-
-def get_rag_answer(question: str, brand: str, country: str, time_period: str) -> str:
-    with st.spinner("Getting answer..."):
-        # This is a placeholder - will be replaced wih RAG implementation
-        return f"This is a placeholder response. The RAG system will provide actual answers for:\nQuestion: {question}\nBrand: {brand}\nCountry: {country}\nTime Period: {time_period}"
-
-
-predefined_questions = {
-    "Cosentyx CEP studies": [
-        "What is Cosentyx?",
-        "What are the main indications for Cosentyx?",
-        "What are the common side effects of Cosentyx?",
-        "How is Cosentyx administered?"
-    ],
-    "Kisqali ATU Studies": [
-        "What is Kisqali?",
-        "What type of breast cancer is Kisqali used to treat?",
-        "What are the potential side effects of Kisqali?",
-        "How is Kisqali taken?"
-    ]
-}
-
-# Function to handle question click
-def handle_question_click(question):
-    st.session_state.current_question = question
-    st.session_state.question_input = question
-    st.session_state.current_answer = get_rag_answer(
-        question, 
-        brand, 
-        selected_country, 
-        selected_time
-    )
-
-# Function to truncate text
-def truncate_text(text, max_length=50):
-    return text if len(text) <= max_length else text[:max_length] + "..."
-
-
-st.write('')
-
-st.subheader("Predefined Questions")
-col1, col2 = st.columns(2)
-cols = [col1, col2]
-
-
-for idx, question in enumerate(predefined_questions[brand]):
-    with cols[idx // 2]:
-    
-        truncated_question = truncate_text(question)
-        if st.button(
-            truncated_question,
-            key=f"q_{idx}",
-            help=question,
-            use_container_width=True
-        ):
-            handle_question_click(question)
-
-
-
-
-
-
-
-
-
-
-
-# Question input and answer section
-st.markdown("---")
-question_section = st.container()
-
-with question_section:
-    st.subheader("Question & Answer")
-    
-
-    with st.form(key='question_form'):
-        col1, col2 = st.columns([5, 1])
+# class MealPlanningAssistant:
+#     def __init__(self):
+#         self.chat_history = []
         
-        with col1:
-            if 'question_input' not in st.session_state:
-                st.session_state.question_input = ""
+#     async def process_request(self, user_input: str) -> str:
+#         """Process a user request through the agent."""
+#         # Add system context to the input
+#         enhanced_input = f"""Help plan a meal by following these steps:
+# 1. Search for appropriate recipes using the search_recipes tool
+# 2. Once you find a recipe, analyze its nutrition using the analyze_nutrition tool
+# 3. Finally, generate a shopping list using the generate_shopping_list tool
+
+# Current request: {user_input}
+
+# Previous conversation context:
+# {' '.join([msg.content for msg in self.chat_history[-4:] if msg.content])}"""
+
+#         try:
+#             response = await agent_executor.ainvoke(
+#                 {
+#                     "input": enhanced_input
+#                 }
+#             )
+            
+#             # Update chat history
+#             self.chat_history.extend([
+#                 HumanMessage(content=user_input),
+#                 AIMessage(content=response["output"])
+#             ])
+            
+#             return response["output"]
+#         except Exception as e:
+#             error_msg = f"I encountered an error: {str(e)}. Let me try to provide a direct response:\n"
+#             # Attempt direct tool usage as fallback
+#             try:
+#                 recipe_result = search_recipes(user_input)
+#                 nutrition = analyze_nutrition(recipe_result)
+#                 shopping = generate_shopping_list(recipe_result)
                 
-            question_input = st.text_input(
-                "Enter or select a question:",
-                value=st.session_state.question_input,
-                key="question_box",
-                label_visibility="collapsed"
-            )
+#                 fallback_response = f"{error_msg}\nHere's what I found:\n\nRecipe: {recipe_result}\n\n{nutrition}\n\nShopping List:\n" + "\n".join(shopping)
+#                 return fallback_response
+#             except:
+#                 return f"{error_msg}I apologize, but I'm having trouble processing your request. Could you please rephrase it or specify what kind of meal you're interested in?"
+
+# # Example usage
+# if __name__ == "__main__":
+#     import asyncio
+    
+#     async def main():
+#         assistant = MealPlanningAssistant()
         
-        with col2:
-            submit_button = st.form_submit_button(
-                "Get Answer",
-                use_container_width=True,
-                type="primary"
+#         print("Starting conversation...")
+#         response = await assistant.process_request(
+#             "I want to cook something vegetarian for dinner. Can you help me plan?"
+#         )
+#         print("\nResponse:", response)
+        
+#         print("\nAsking follow-up question...")
+#         response = await assistant.process_request(
+#             "What if I want to make it spicier?"
+#         )
+#         print("\nFollow-up response:", response)
+
+#     asyncio.run(main())
+
+
+from typing import List
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain.agents import AgentExecutor
+from langchain.agents import initialize_agent, AgentType
+from langchain_core.tools import Tool, tool
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry import trace as trace_api
+from openinference.instrumentation.langchain import LangChainInstrumentor
+from openinference.semconv.resource import ResourceAttributes
+
+# Import RAG-specific and PDF-specific components
+from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+
+import os
+
+# Configure OpenTelemetry
+project_name = "rag_pdf_assistant"
+resource = Resource.create({ResourceAttributes.PROJECT_NAME: project_name})
+tracer_provider = trace_sdk.TracerProvider(resource=resource)
+
+endpoint = "http://localhost:6006/v1/traces"
+PHOENIX_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJBcGlLZXk6NCJ9.ZEb_RGQYLiYufKs0pnkW4ks3iLDV0Xby9GRIeVoWGYE'
+headers = {"authorization": f"Bearer {PHOENIX_API_KEY}"} if PHOENIX_API_KEY else {}
+
+# Configure only the OTLP exporter
+span_exporter = OTLPSpanExporter(endpoint=endpoint)
+span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+tracer_provider.add_span_processor(span_processor)
+
+# Set the tracer provider and instrument LangChain
+trace_api.set_tracer_provider(tracer_provider)
+LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
+
+# Set API keys
+os.environ["GROQ_API_KEY"] = "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"
+
+class PDFProcessor:
+    def __init__(self, docs_dir: str):
+        self.docs_dir = docs_dir
+        self.embeddings = HuggingFaceBgeEmbeddings(
+            model_name="BAAI/bge-small-en-v1.5",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+        # Adjusted chunk size for PDFs
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,
+            chunk_overlap=150,
+            separators=["\n\n", "\n", " ", ""]
+        )
+    
+    def load_single_pdf(self, pdf_path: str):
+        """Load a single PDF file."""
+        try:
+            loader = PyPDFLoader(pdf_path)
+            pages = loader.load()
+            print(f"Loaded {len(pages)} pages from {pdf_path}")
+            return pages
+        except Exception as e:
+            print(f"Error loading PDF {pdf_path}: {str(e)}")
+            return []
+    
+    def process_pdfs(self):
+        """Process all PDFs in the directory."""
+        try:
+            if not os.path.exists(self.docs_dir):
+                os.makedirs(self.docs_dir)
+                print(f"Created documents directory at {self.docs_dir}")
+                raise ValueError(f"No PDFs found in {self.docs_dir}. Please add some PDF files.")
+            
+            # Get all PDF files in directory
+            pdf_files = [
+                os.path.join(self.docs_dir, f) 
+                for f in os.listdir(self.docs_dir) 
+                if f.lower().endswith('.pdf')
+            ]
+            
+            if not pdf_files:
+                raise ValueError(f"No PDF files found in {self.docs_dir}")
+            
+            print(f"Found {len(pdf_files)} PDF files")
+            
+            # Load all PDFs
+            all_pages = []
+            for pdf_file in pdf_files:
+                pages = self.load_single_pdf(pdf_file)
+                all_pages.extend(pages)
+            
+            if not all_pages:
+                raise ValueError("No content could be extracted from PDFs")
+            
+            # Split documents
+            print("Splitting documents into chunks...")
+            splits = self.text_splitter.split_documents(all_pages)
+            print(f"Created {len(splits)} text chunks")
+            
+            # Create vector store
+            print("Creating vector store...")
+            vectorstore = Chroma.from_documents(
+                documents=splits,
+                embedding=self.embeddings,
+                persist_directory="./chroma_db"
+            )
+            print("Vector store created and persisted")
+            
+            return vectorstore
+            
+        except Exception as e:
+            print(f"Error processing PDFs: {str(e)}")
+            raise
+
+
+
+class RAGAssistant:
+    def __init__(self, docs_dir: str = "./documents"):
+        """Initialize the RAG assistant with PDF directory."""
+        self.chat_history = []
+        self.tracer = trace_api.get_tracer(__name__)
+        
+        try:
+            # Initialize PDF processor
+            print("\nInitializing PDF processor...")
+            pdf_processor = PDFProcessor(docs_dir)
+            
+            print("\nProcessing PDFs...")
+            self.vectorstore = pdf_processor.process_pdfs()
+            
+            # Initialize LLM
+            print("\nInitializing LLM...")
+            self.llm = ChatGroq(
+                model_name="mixtral-8x7b-32768",
+                temperature=0.7
             )
             
-    
-    if submit_button:
-        if question_input:
-            st.session_state.current_question = question_input
-            st.session_state.current_answer = get_rag_answer(
-                question_input,
-                brand,
-                selected_country,
-                selected_time
+            # Create memory with explicit output key
+            self.memory = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True,
+                output_key="answer"  # Explicitly specify the output key
             )
-        else:
-            st.warning("Please enter a question.")
-
-    # Display answer
-    if st.session_state.current_answer:
-        st.markdown("### Answer")
-        st.markdown(st.session_state.current_answer)
-
-
-
-# Advanced options
-
-st.markdown("---")
-with st.expander("Advanced Options"):
-  
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Download as CSV", use_container_width=True,
-                    help="Download the Q&A results in CSV format"):
-          
-            st.info("CSV download functionality will be implemented")
+            
+            # Create retrieval chain with custom prompt
+            print("\nCreating retrieval chain...")
+            
+            self.chain = ConversationalRetrievalChain.from_llm(
+                llm=self.llm,
+                retriever=self.vectorstore.as_retriever(
+                    search_kwargs={
+                        "k": 3,
+                    }
+                ),
+                memory=self.memory,
+                return_source_documents=True,
+                verbose=True
+            )
+            print("\nRAG Assistant initialization complete!")
+            
+        except Exception as e:
+            print(f"\nError initializing RAG Assistant: {str(e)}")
+            raise
     
-    with col2:
-        if st.button("Download as Word", use_container_width=True,
-                    help="Download the Q&A results in Word format"):
-            st.info("Word download functionality will be implemented")
-    
-    st.markdown("---") 
-    
+    async def process_request(self, user_input: str) -> str:
+        """Process a user request using RAG."""
+        with self.tracer.start_as_current_span("process_rag_request") as span:
+            span.set_attribute("user_input", user_input)
+            
+            try:
+                # Get response from chain
+                response = await self.chain.ainvoke({
+                    "question": user_input
+                })
+                
+                # Format response with sources
+                formatted_response = response["answer"]
+                
+                # Add source citations with page numbers
+                if "source_documents" in response:
+                    sources = []
+                    seen_sources = set()  # Track unique sources
+                    for doc in response["source_documents"]:
+                        page_num = doc.metadata.get('page', 'Unknown page')
+                        file_name = os.path.basename(doc.metadata.get('source', 'Unknown file'))
+                        source_key = f"{file_name}-{page_num}"
+                        if source_key not in seen_sources:
+                            sources.append(f"\n- {file_name} (Page {page_num})")
+                            seen_sources.add(source_key)
+                
+                # Update chat history
+                self.chat_history.extend([
+                    HumanMessage(content=user_input),
+                    AIMessage(content=formatted_response)
+                ])
+                
+                span.set_attribute("success", True)
+                return formatted_response
+                
+            except Exception as e:
+                span.set_attribute("success", False)
+                span.set_attribute("error", str(e))
+                return f"I encountered an error processing your request: {str(e)}"
 
-    show_steps = st.checkbox("Show Interim Steps", 
-                           help="Display intermediate steps in the analysis process")
-    if show_steps:
-        st.info("Interim steps functionality will be implemented with the RAG system")
-      
-        st.markdown("```\nInterim steps will appear here\n```")
+# Example usage
+if __name__ == "__main__":
+    import asyncio
     
-    show_source = st.checkbox("Show Source", 
-                            help="Display the source of information used in the answer")
-    if show_source:
-        st.info("Source information will be available with RAG implementation")
-      
-        st.markdown("```\nSource information will appear here\n```")
+    async def main():
+        try:
+            print("Starting RAG Assistant...")
+            
+            # Specify the documents directory
+            docs_dir = "./documents"
+            
+            # Create assistant
+            assistant = RAGAssistant(docs_dir)
+            
+            print("\nStarting conversation...")
+            response = await assistant.process_request(
+                "What are the main topics discussed in these PDFs?"
+            )
+            print("\nResponse:", response)
+            
+            print("\nAsking follow-up question...")
+            response = await assistant.process_request(
+                "Can you provide more details about one of these topics?"
+            )
+            print("\nFollow-up response:", response)
+            
+        except Exception as e:
+            print(f"\nAn error occurred in the main program: {str(e)}")
+            raise
 
-
-
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import mlflow
-import torch
-
-# Start MLflow run
-with mlflow.start_run(run_name="llama2_registration"):
-    
-    # Choose model version
-    model_id = "meta-llama/Llama-2-7b-chat-hf"  # or other Llama variants
-    
-    # Log model details as params
-    mlflow.log_params({
-        "model_id": model_id,
-        "model_type": "chat"
-    })
-    
-    # Download model and tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16)
-    
-    # Save to Model Registry
-    mlflow.transformers.log_model(
-        transformers_model={
-            "model": model,
-            "tokenizer": tokenizer
-        },
-        artifact_path="llama2-chat",
-        registered_model_name="llama2-chat-model",  # This registers it in Model Registry
-        pip_requirements=["torch", "transformers", "accelerate"]
-    )
-
-# Get the latest version
-model_path = "models:/llama2-chat-model/latest"
+    asyncio.run(main())
