@@ -1,0 +1,28 @@
+# Core dependencies
+numpy>=1.26.0
+pandas>=1.5.0
+scikit-learn>=1.0.0
+nest-asyncio>=1.5.0
+
+# LangChain and related
+langchain>=0.3.11
+langchain-community>=0.3.11
+langchain-core>=0.3.24
+langchain-groq>=0.2.1
+langchain-openai>=0.2.12
+langchain-text-splitters>=0.3.2
+openinference-instrumentation-langchain>=0.1.29
+
+# Vector store and embeddings
+qdrant-client
+sentence-transformers
+tiktoken
+
+# Phoenix and evaluation
+arize-phoenix[evals,embeddings]
+openai>=1.0.0
+litellm
+
+# Optional dependencies
+pytest  # for testing
+python-dotenv  # for environment variables
