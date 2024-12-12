@@ -44,7 +44,8 @@
 
 # # Set environment variable for Groq API key
 # os.environ["GROQ_API_KEY"] = "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"
-
+https://abhin-m2ifqtz5-eastus2.openai.azure.com/openai/deployments/gpt-4/chat/completions?api-version=2024-08-01-preview
+4f46e8f30eac4a3abedeb41c04b7ab52
 # # Define tools
 # @tool
 # def search_recipes(query: str) -> str:
